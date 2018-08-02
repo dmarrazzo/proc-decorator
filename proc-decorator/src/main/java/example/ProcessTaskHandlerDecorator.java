@@ -17,22 +17,32 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 	private RuntimeManager runtimeManager;
 	private String processId;
 
-	public ProcessTaskHandlerDecorator(RuntimeManager runtimeManager,
-			Class<? extends WorkItemHandler> originalTaskHandlerClass) {
+	public ProcessTaskHandlerDecorator(Class<? extends WorkItemHandler> originalTaskHandlerClass,
+			RuntimeManager runtimeManager) {
 		super(originalTaskHandlerClass);
 		this.runtimeManager = runtimeManager;
+	}
+
+	public ProcessTaskHandlerDecorator(Class<? extends WorkItemHandler> originalTaskHandlerClass,
+			RuntimeManager runtimeManager, String processId) {
+		super(originalTaskHandlerClass);
+		this.runtimeManager = runtimeManager;
+		this.processId = processId;
 	}
 
 	@Override
 	public void handleExecuteException(Throwable cause, WorkItem workItem, WorkItemManager manager) {
 		System.out.println("ProcessTaskHandlerDecorator.handleExecuteException()");
-		
+
+		if (processId == null)
+			processId = (String) workItem.getParameter("processId");
+
 		// Start the subprocess
 		RuntimeEngine runtimeEngine = runtimeManager.getRuntimeEngine(ProcessInstanceIdContext.get());
 		WorkflowProcessInstance processInstance = (WorkflowProcessInstance) runtimeEngine.getKieSession()
 				.startProcess(processId);
-		
-    	((ProcessInstanceImpl) processInstance).setMetaData("ParentProcessInstanceId", workItem.getProcessInstanceId());
+
+		((ProcessInstanceImpl) processInstance).setMetaData("ParentProcessInstanceId", workItem.getProcessInstanceId());
 
 		// Attach the event listener
 		EventListener eventListener = new EventListener() {
