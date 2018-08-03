@@ -2,6 +2,7 @@ package example;
 
 import org.jbpm.bpmn2.handler.AbstractExceptionHandlingTaskHandler;
 import org.jbpm.process.instance.impl.ProcessInstanceImpl;
+import org.jbpm.process.workitem.rest.RESTWorkItemHandler;
 import org.jbpm.workflow.instance.WorkflowProcessInstance;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.manager.RuntimeEngine;
@@ -50,6 +51,11 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 	public ProcessTaskHandlerDecorator(Class<? extends WorkItemHandler> originalTaskHandlerClass,
 			RuntimeManager runtimeManager) {
 		super(originalTaskHandlerClass);
+		this.runtimeManager = runtimeManager;
+	}
+
+	public ProcessTaskHandlerDecorator(RuntimeManager runtimeManager) {
+		super(RESTWorkItemHandler.class);
 		this.runtimeManager = runtimeManager;
 	}
 
