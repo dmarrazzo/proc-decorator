@@ -1,13 +1,14 @@
 package example;
 
+import org.drools.core.event.DefaultProcessEventListener;
 import org.jbpm.bpmn2.handler.AbstractExceptionHandlingTaskHandler;
 import org.jbpm.process.instance.impl.ProcessInstanceImpl;
 import org.jbpm.process.workitem.rest.RESTWorkItemHandler;
-import org.jbpm.workflow.instance.WorkflowProcessInstance;
+import org.kie.api.event.process.ProcessCompletedEvent;
+import org.kie.api.event.process.ProcessEventListener;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.manager.RuntimeEngine;
 import org.kie.api.runtime.manager.RuntimeManager;
-import org.kie.api.runtime.process.EventListener;
 import org.kie.api.runtime.process.ProcessInstance;
 import org.kie.api.runtime.process.WorkItem;
 import org.kie.api.runtime.process.WorkItemHandler;
@@ -18,35 +19,6 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 
 	private RuntimeManager runtimeManager;
 	private String processId;
-
-	class SubprocessEventListener implements EventListener {
-
-		private long processInstanceId;
-		private WorkItem workItem;
-		private WorkItemManager manager;
-
-		public SubprocessEventListener(long processId, WorkItem workItem, WorkItemManager manager) {
-			super();
-			this.processInstanceId = processId;
-			this.workItem = workItem;
-			this.manager = manager;
-		}
-
-		@Override
-		public void signalEvent(String type, Object event) {
-			System.out.println("ProcessTaskHandlerDecorator.SubprocessEventListener.signalEvent()");
-			if (("processInstanceCompleted:" + processInstanceId).equals(type)) {
-				manager.completeWorkItem(workItem.getId(), null);
-			}
-		}
-
-		@Override
-		public String[] getEventTypes() {
-			System.out.println("ProcessTaskHandlerDecorator.SubprocessEventListener.getEventTypes()");
-			return new String[] { "processInstanceCompleted:" + processInstanceId };
-		}
-
-	}
 
 	public ProcessTaskHandlerDecorator(Class<? extends WorkItemHandler> originalTaskHandlerClass,
 			RuntimeManager runtimeManager) {
@@ -86,19 +58,22 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 
 		kieSession.startProcessInstance(processInstance.getId());
 
-		// Attach the event listener
-		SubprocessEventListener eventListener = new SubprocessEventListener(processInstance.getId(), workItem, manager);
-
 		if (processInstance.getState() == ProcessInstance.STATE_COMPLETED
 				|| processInstance.getState() == ProcessInstance.STATE_ABORTED) {
 			manager.completeWorkItem(workItem.getId(), null);
 		} else {
-			WorkflowProcessInstance callingPI = (WorkflowProcessInstance) kieSession
-					.getProcessInstance(workItem.getProcessInstanceId());
-			callingPI.addEventListener("processInstanceCompleted:" + processInstance.getId(), eventListener, true);
-//			((WorkflowProcessInstance) processInstance)
-//					.addEventListener("processInstanceCompleted:" + processInstance.getId(), eventListener, true);
-
+			// Attach the event listener
+			ProcessEventListener procListener = new DefaultProcessEventListener() {
+				public void afterProcessCompleted(ProcessCompletedEvent event) {
+					System.out.println("afterProcessCompleted()");
+					if (processInstance.getId() == event.getProcessInstance().getId()) {
+						manager.completeWorkItem(workItem.getId(), null);
+						event.getKieRuntime().removeEventListener(this);
+					}
+					super.afterProcessCompleted(event);
+				}
+			};
+			kieSession.addEventListener(procListener);
 		}
 	}
 
