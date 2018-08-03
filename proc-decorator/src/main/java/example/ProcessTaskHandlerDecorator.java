@@ -1,7 +1,5 @@
 package example;
 
-import javax.inject.Inject;
-
 import org.jbpm.bpmn2.handler.AbstractExceptionHandlingTaskHandler;
 import org.jbpm.process.instance.impl.ProcessInstanceImpl;
 import org.jbpm.workflow.instance.WorkflowProcessInstance;
@@ -13,13 +11,10 @@ import org.kie.api.runtime.process.ProcessInstance;
 import org.kie.api.runtime.process.WorkItem;
 import org.kie.api.runtime.process.WorkItemHandler;
 import org.kie.api.runtime.process.WorkItemManager;
-import org.kie.internal.runtime.manager.cdi.qualifier.Singleton;
 import org.kie.internal.runtime.manager.context.ProcessInstanceIdContext;
 
 public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHandler {
 
-	@Inject
-	@Singleton
 	private RuntimeManager runtimeManager;
 	private String processId;
 
@@ -50,10 +45,6 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 			return new String[] { "processInstanceCompleted:" + processInstanceId };
 		}
 
-	}
-
-	public ProcessTaskHandlerDecorator(Class<? extends WorkItemHandler> originalTaskHandlerClass) {
-		super(originalTaskHandlerClass);
 	}
 
 	public ProcessTaskHandlerDecorator(Class<? extends WorkItemHandler> originalTaskHandlerClass,
