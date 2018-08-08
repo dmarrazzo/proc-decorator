@@ -9,7 +9,7 @@
 	<description>decorator delegates the exception handling to a process</description>
 
 	<properties>
-		<version>7.0.1.GA-redhat-1</version>
+		<version>7.0.2.GA-redhat-2</version>
 	</properties>
 
 	<dependencyManagement>

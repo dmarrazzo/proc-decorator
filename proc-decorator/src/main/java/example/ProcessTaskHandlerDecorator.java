@@ -5,7 +5,7 @@ import org.jbpm.process.instance.InternalProcessRuntime;
 import org.jbpm.process.instance.ProcessInstance;
 import org.jbpm.process.instance.event.SignalManager;
 import org.jbpm.process.workitem.rest.RESTWorkItemHandler;
-import org.jbpm.workflow.instance.impl.WorkflowProcessInstanceImpl;
+import org.jbpm.ruleflow.instance.RuleFlowProcessInstance;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.manager.RuntimeEngine;
 import org.kie.api.runtime.manager.RuntimeManager;
@@ -49,25 +49,30 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 		KieSession kieSession = runtimeEngine.getKieSession();
 
 		// Create the subprocess
-		ProcessInstance processInstance = (ProcessInstance) kieSession.createProcessInstance(processId,
+		RuleFlowProcessInstance processInstance = (RuleFlowProcessInstance) kieSession.createProcessInstance(processId,
 				workItem.getParameters());
 
-		WorkflowProcessInstanceImpl piImpl = (WorkflowProcessInstanceImpl) processInstance;
-
 		long parentInstanceId = workItem.getProcessInstanceId();
-		piImpl.setMetaData("ParentProcessInstanceId", parentInstanceId);
-		piImpl.setParentProcessInstanceId(parentInstanceId);
-		piImpl.setSignalCompletion(true);
+		processInstance.setMetaData("ParentProcessInstanceId", parentInstanceId);
+		processInstance.setParentProcessInstanceId(parentInstanceId);
+		processInstance.setSignalCompletion(true);
 
 		// Start the subprocess
 		kieSession.startProcessInstance(processInstance.getId());
 
 		// Manage the subprocess completion
-		RetryHandlingListener retryHandlingListener = new RetryHandlingListener(workItem, manager, piImpl, this);
-				
-		InternalProcessRuntime processRuntime = (InternalProcessRuntime) processInstance.getKnowledgeRuntime().getProcessRuntime();
-		SignalManager signalManager = processRuntime.getSignalManager();
-		retryHandlingListener.register(signalManager);
+		if (processInstance.getState() == ProcessInstance.STATE_COMPLETED
+				|| processInstance.getState() == ProcessInstance.STATE_ABORTED) {
+			manager.completeWorkItem(workItem.getId(), null);
+		} else {
+
+			RetryHandlingListener retryHandlingListener = new RetryHandlingListener(workItem, manager, processInstance, this, cause);
+
+			InternalProcessRuntime processRuntime = (InternalProcessRuntime) processInstance.getKnowledgeRuntime()
+					.getProcessRuntime();
+			SignalManager signalManager = processRuntime.getSignalManager();
+			retryHandlingListener.register(signalManager);
+		}
 	}
 
 	@Override
