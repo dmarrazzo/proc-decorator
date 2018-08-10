@@ -62,7 +62,8 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 				|| processInstance.getState() == ProcessInstance.STATE_ABORTED) {
 			manager.completeWorkItem(workItem.getId(), null);
 		} else {
-			new ErrorHandlingCompletion(processInstance, runtimeManager, this, manager, workItem, cause);
+			ErrorHandlingCompletion errorHandlingCompletion = new ErrorHandlingCompletion(runtimeManager, this, manager, workItem, cause);
+			errorHandlingCompletion.listenTo(processInstance);
 		}
 	}
 

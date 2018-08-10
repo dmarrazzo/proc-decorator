@@ -22,16 +22,14 @@ public class ErrorHandlingCompletion extends ProcessCompletionListener {
 	private RuntimeManager runtimeManager;
 
 
-	public ErrorHandlingCompletion(RuleFlowProcessInstance processInstance,RuntimeManager runtimeManager,
+	public ErrorHandlingCompletion(RuntimeManager runtimeManager,
 			ProcessTaskHandlerDecorator processTaskHandlerDecorator, WorkItemManager manager, WorkItem workItem,
 			Throwable cause) {
-		super(processInstance);
 		this.runtimeManager = runtimeManager;
 		this.processTaskHandlerDecorator = processTaskHandlerDecorator;
 		this.manager = manager;
 		this.workItem = workItem;
 		this.cause = cause;
-		register();
 	}
 
 	@Override

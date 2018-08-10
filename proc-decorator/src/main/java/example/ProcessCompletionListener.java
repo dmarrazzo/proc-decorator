@@ -7,13 +7,10 @@ import org.kie.api.runtime.process.EventListener;
 
 public abstract class ProcessCompletionListener implements EventListener {
 
-	private RuleFlowProcessInstance processInstance;
 	private String[] eventTypes;
 	private InternalProcessRuntime processRuntime;
 
-	public ProcessCompletionListener(RuleFlowProcessInstance processInstance) {
-		this.processInstance = processInstance;
-		this.eventTypes = new String[] {"processInstanceCompleted:"+processInstance.getId()};
+	public ProcessCompletionListener() {
 	}
 	
 	@Override
@@ -26,7 +23,7 @@ public abstract class ProcessCompletionListener implements EventListener {
 			} else {
 				processAborted(processInstance);
 			}
-			unregister();
+			stopListening();
 		} else {
 			System.err.format("event: %s with wrong payload: %s\n", type, event);
 		}
@@ -40,7 +37,8 @@ public abstract class ProcessCompletionListener implements EventListener {
 		return eventTypes;
 	}
 	
-	public void register() {
+	public void listenTo(RuleFlowProcessInstance processInstance) {
+		this.eventTypes = new String[] {"processInstanceCompleted:"+processInstance.getId()};
 		processInstance.setSignalCompletion(true);
 		processRuntime = (InternalProcessRuntime) processInstance.getKnowledgeRuntime().getProcessRuntime();
 		for (String event : getEventTypes()) {
@@ -48,7 +46,7 @@ public abstract class ProcessCompletionListener implements EventListener {
 		}
 	}
 
-	private void unregister() {
+	private void stopListening() {
 		for (String event : getEventTypes()) {
 			processRuntime.getSignalManager().removeEventListener(event, this);
 		}		
