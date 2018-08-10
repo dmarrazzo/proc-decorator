@@ -31,6 +31,7 @@ public class ErrorHandlingCompletion extends ProcessCompletionListener {
 		this.manager = manager;
 		this.workItem = workItem;
 		this.cause = cause;
+		register();
 	}
 
 	@Override
