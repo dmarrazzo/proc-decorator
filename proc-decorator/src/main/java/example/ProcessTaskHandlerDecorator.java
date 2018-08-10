@@ -1,9 +1,7 @@
 package example;
 
 import org.jbpm.bpmn2.handler.AbstractExceptionHandlingTaskHandler;
-import org.jbpm.process.instance.InternalProcessRuntime;
 import org.jbpm.process.instance.ProcessInstance;
-import org.jbpm.process.instance.event.SignalManager;
 import org.jbpm.process.workitem.rest.RESTWorkItemHandler;
 import org.jbpm.ruleflow.instance.RuleFlowProcessInstance;
 import org.kie.api.runtime.KieSession;
@@ -55,7 +53,6 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 		long parentInstanceId = workItem.getProcessInstanceId();
 		processInstance.setMetaData("ParentProcessInstanceId", parentInstanceId);
 		processInstance.setParentProcessInstanceId(parentInstanceId);
-		processInstance.setSignalCompletion(true);
 
 		// Start the subprocess
 		kieSession.startProcessInstance(processInstance.getId());
@@ -65,13 +62,7 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 				|| processInstance.getState() == ProcessInstance.STATE_ABORTED) {
 			manager.completeWorkItem(workItem.getId(), null);
 		} else {
-
-			RetryHandlingListener retryHandlingListener = new RetryHandlingListener(workItem, manager, processInstance, this, cause);
-
-			InternalProcessRuntime processRuntime = (InternalProcessRuntime) processInstance.getKnowledgeRuntime()
-					.getProcessRuntime();
-			SignalManager signalManager = processRuntime.getSignalManager();
-			retryHandlingListener.register(signalManager);
+			new ErrorHandlingCompletion(processInstance, runtimeManager, this, manager, workItem, cause);
 		}
 	}
 
