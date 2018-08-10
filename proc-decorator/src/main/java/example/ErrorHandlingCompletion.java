@@ -54,8 +54,8 @@ public class ErrorHandlingCompletion extends ProcessCompletionListener {
 		}
 		// user ask to skip the failing service
 		else {
-			// mark done
-			manager.completeWorkItem(workItem.getId(), null);
+			// mark workitem aborted (skipped)
+			manager.abortWorkItem(workItem.getId());
 		}
 	}
 
