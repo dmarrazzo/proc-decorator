@@ -1,5 +1,7 @@
 package example;
 
+import java.util.List;
+
 import org.drools.core.process.instance.impl.WorkItemImpl;
 import org.jbpm.bpmn2.handler.AbstractExceptionHandlingTaskHandler;
 import org.jbpm.process.core.context.exception.ExceptionScope;
@@ -11,6 +13,8 @@ import org.jbpm.workflow.instance.NodeInstance;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.manager.RuntimeEngine;
 import org.kie.api.runtime.manager.RuntimeManager;
+import org.kie.api.runtime.manager.audit.AuditService;
+import org.kie.api.runtime.manager.audit.ProcessInstanceLog;
 import org.kie.api.runtime.process.WorkItem;
 import org.kie.api.runtime.process.WorkItemHandler;
 import org.kie.api.runtime.process.WorkItemManager;
@@ -65,7 +69,7 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 			long parentInstanceId = workItem.getProcessInstanceId();
 			processInstance.setMetaData("ParentProcessInstanceId", parentInstanceId);
 			processInstance.setParentProcessInstanceId(parentInstanceId);
-			processInstance.setDescription(processId + " handling exception for workItemId:" + workItem.getId());
+			processInstance.setDescription("Exception handling process for workItemId:"+workItem.getId());
 
 			// Start the subprocess
 			kieSession.startProcessInstance(processInstance.getId());
@@ -89,9 +93,35 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 	}
 
 	@Override
+    public void abortWorkItem(WorkItem workItem, WorkItemManager manager) {
+		abortExceptionHandlingProcess(workItem, manager);
+		super.abortWorkItem(workItem, manager);
+    }
+	
+	private void abortExceptionHandlingProcess(WorkItem workItem, WorkItemManager manager) {
+		log.trace("Begin");
+		// Retrieve the audit service
+		RuntimeEngine runtimeEngine = runtimeManager.getRuntimeEngine(ProcessInstanceIdContext.get());
+		AuditService auditService = runtimeEngine.getAuditService();
+
+		List<? extends ProcessInstanceLog> subProcessInstances = auditService
+				.findSubProcessInstances(workItem.getProcessInstanceId());
+		// Abort error handling subprocess if it's still active
+		subProcessInstances.forEach(p -> {
+			if (p.getStatus() == ProcessInstance.STATE_ACTIVE && p.getProcessId().equals(processId)) {
+				String[] split = p.getProcessInstanceDescription().split("workItemId:");
+				if (split.length == 2 && Long.parseLong(split[1]) == workItem.getId()) {
+					KieSession kieSession = runtimeEngine.getKieSession();
+					kieSession.abortProcessInstance(p.getProcessInstanceId());
+				}
+			}
+		});
+		log.trace("End");	
+	}
+
+	@Override
 	public void handleAbortException(Throwable cause, WorkItem workItem, WorkItemManager manager) {
-		log.info("Exception while aborting work item id {} in process instance id: {}", workItem.getId(),
-				workItem.getProcessInstanceId());
+		log.info("Not implemented");
 	}
 
 	public void rethrowException(WorkItem workItem, Throwable cause) throws Exception {
