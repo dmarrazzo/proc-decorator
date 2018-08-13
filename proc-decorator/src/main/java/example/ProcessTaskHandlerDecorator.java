@@ -65,7 +65,7 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 			long parentInstanceId = workItem.getProcessInstanceId();
 			processInstance.setMetaData("ParentProcessInstanceId", parentInstanceId);
 			processInstance.setParentProcessInstanceId(parentInstanceId);
-			processInstance.setDescription(processId + " handling exception for workItemId:" + workItem.getId());
+			processInstance.setDescription("Exception handling for workItemId:" + workItem.getId());
 
 			// Start the subprocess
 			kieSession.startProcessInstance(processInstance.getId());
