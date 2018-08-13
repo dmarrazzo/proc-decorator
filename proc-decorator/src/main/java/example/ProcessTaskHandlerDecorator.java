@@ -22,7 +22,7 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 
 	protected RuntimeManager runtimeManager;
 	private String processId;
-	
+
 	private Logger log = LoggerFactory.getLogger(getClass());
 
 	public ProcessTaskHandlerDecorator(Class<? extends WorkItemHandler> originalTaskHandlerClass,
@@ -50,8 +50,10 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 			if (processId == null)
 				processId = (String) workItem.getParameter("processId");
 
-			log.trace("Process instance id: {}, comes accross the exception {}, Starting process {} to handle the exception.", workItem.getProcessInstanceId(), cause, processId);
-			
+			log.trace(
+					"Process instance id: {}, comes accross the exception {}, Starting process {} to handle the exception.",
+					workItem.getProcessInstanceId(), cause, processId);
+
 			// Create the kiesession
 			RuntimeEngine runtimeEngine = runtimeManager.getRuntimeEngine(ProcessInstanceIdContext.get());
 			KieSession kieSession = runtimeEngine.getKieSession();
@@ -63,6 +65,7 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 			long parentInstanceId = workItem.getProcessInstanceId();
 			processInstance.setMetaData("ParentProcessInstanceId", parentInstanceId);
 			processInstance.setParentProcessInstanceId(parentInstanceId);
+			processInstance.setDescription(processId + " handling exception for workItemId:" + workItem.getId());
 
 			// Start the subprocess
 			kieSession.startProcessInstance(processInstance.getId());
@@ -78,7 +81,8 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 				errorHandlingCompletion.listenTo(processInstance);
 			}
 		} catch (Throwable t) {
-			log.error("Error caused by {}, handling exception: {}, in process instance id: {}", t, cause, workItem.getProcessInstanceId());
+			log.error("Error caused by {}, handling exception: {}, in process instance id: {}", t, cause,
+					workItem.getProcessInstanceId());
 			throw t;
 		}
 		log.trace("End");
@@ -86,8 +90,8 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 
 	@Override
 	public void handleAbortException(Throwable cause, WorkItem workItem, WorkItemManager manager) {
-		log.trace("Begin");
-		log.trace("End");
+		log.info("Exception while aborting work item id {} in process instance id: {}", workItem.getId(),
+				workItem.getProcessInstanceId());
 	}
 
 	public void rethrowException(WorkItem workItem, Throwable cause) throws Exception {
