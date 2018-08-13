@@ -15,11 +15,15 @@ import org.kie.api.runtime.process.WorkItem;
 import org.kie.api.runtime.process.WorkItemHandler;
 import org.kie.api.runtime.process.WorkItemManager;
 import org.kie.internal.runtime.manager.context.ProcessInstanceIdContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHandler {
 
 	protected RuntimeManager runtimeManager;
 	private String processId;
+	
+	private Logger log = LoggerFactory.getLogger(getClass());
 
 	public ProcessTaskHandlerDecorator(Class<? extends WorkItemHandler> originalTaskHandlerClass,
 			RuntimeManager runtimeManager) {
@@ -41,12 +45,13 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 
 	@Override
 	public void handleExecuteException(Throwable cause, WorkItem workItem, WorkItemManager manager) {
-		System.out.println("ProcessTaskHandlerDecorator.handleExecuteException()");
-
+		log.trace("Begin");
 		try {
 			if (processId == null)
 				processId = (String) workItem.getParameter("processId");
 
+			log.trace("Process instance id: {}, comes accross the exception {}, Starting process {} to handle the exception.", workItem.getProcessInstanceId(), cause, processId);
+			
 			// Create the kiesession
 			RuntimeEngine runtimeEngine = runtimeManager.getRuntimeEngine(ProcessInstanceIdContext.get());
 			KieSession kieSession = runtimeEngine.getKieSession();
@@ -67,24 +72,22 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 					|| processInstance.getState() == ProcessInstance.STATE_ABORTED) {
 				manager.completeWorkItem(workItem.getId(), null);
 			} else {
+				log.trace("Subprocess completion listner");
 				ErrorHandlingCompletion errorHandlingCompletion = new ErrorHandlingCompletion(this, manager, workItem,
 						cause);
 				errorHandlingCompletion.listenTo(processInstance);
 			}
-		} catch (Exception e) {
-			System.err.println("Error in " + this.getClass().getName() + " caused by: " + e
-					+ "rethrowing the original cause to the originator process instance");
-			try {
-				rethrowException(workItem, cause);
-			} catch (Exception rethrowException) {
-				rethrowException.printStackTrace();
-			}
+		} catch (Throwable t) {
+			log.error("Error caused by {}, handling exception: {}, in process instance id: {}", t, cause, workItem.getProcessInstanceId());
+			throw t;
 		}
+		log.trace("End");
 	}
 
 	@Override
 	public void handleAbortException(Throwable cause, WorkItem workItem, WorkItemManager manager) {
-		System.err.println("ProcessTaskHandlerDecorator.handleAbortException()");
+		log.trace("Begin");
+		log.trace("End");
 	}
 
 	public void rethrowException(WorkItem workItem, Throwable cause) throws Exception {
