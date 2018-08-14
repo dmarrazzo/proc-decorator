@@ -9,15 +9,16 @@ public abstract class ProcessCompletionListener implements EventListener {
 
 	private String[] eventTypes;
 	private InternalProcessRuntime processRuntime;
+	private String eventType;
 
 	public ProcessCompletionListener() {
 	}
-	
+
 	@Override
 	public void signalEvent(String type, Object event) {
 		if (event instanceof RuleFlowProcessInstance) {
 			RuleFlowProcessInstance processInstance = (RuleFlowProcessInstance) event;
-			
+
 			if (processInstance.getState() == ProcessInstance.STATE_COMPLETED) {
 				processCompleted(processInstance);
 			} else {
@@ -30,26 +31,25 @@ public abstract class ProcessCompletionListener implements EventListener {
 	}
 
 	public abstract void processCompleted(RuleFlowProcessInstance processInstance);
+
 	public abstract void processAborted(RuleFlowProcessInstance processInstance);
-	
+
 	@Override
 	public String[] getEventTypes() {
 		return eventTypes;
 	}
-	
+
 	public void listenTo(RuleFlowProcessInstance processInstance) {
-		this.eventTypes = new String[] {"processInstanceCompleted:"+processInstance.getId()};
+		this.eventType = "processInstanceCompleted:" + processInstance.getId();
+		this.eventTypes = new String[] { eventType };
+
 		processInstance.setSignalCompletion(true);
 		processRuntime = (InternalProcessRuntime) processInstance.getKnowledgeRuntime().getProcessRuntime();
-		for (String event : getEventTypes()) {
-			processRuntime.getSignalManager().addEventListener(event, this);
-		}
+		processRuntime.getSignalManager().addEventListener(eventType, this);
 	}
 
 	private void stopListening() {
-		for (String event : getEventTypes()) {
-			processRuntime.getSignalManager().removeEventListener(event, this);
-		}		
+		processRuntime.getSignalManager().removeEventListener(eventType, this);
 	}
 
 }
