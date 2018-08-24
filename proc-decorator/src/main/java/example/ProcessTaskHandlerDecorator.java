@@ -79,7 +79,10 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 				log.trace("Subprocess completion listner");
 				ErrorHandlingCompletion errorHandlingCompletion = new ErrorHandlingCompletion(this, manager, workItem,
 						cause);
-				errorHandlingCompletion.listenTo(processInstance);
+				errorHandlingCompletion.listenTo(processInstance, runtimeManager);
+				
+
+				
 			}
 		} catch (Throwable t) {
 			log.error("Error caused by {}, handling exception: {}, in process instance id: {}", t, cause,

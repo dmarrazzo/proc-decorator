@@ -3,7 +3,11 @@ package example;
 import org.jbpm.process.instance.InternalProcessRuntime;
 import org.jbpm.process.instance.ProcessInstance;
 import org.jbpm.ruleflow.instance.RuleFlowProcessInstance;
+import org.kie.api.runtime.KieSession;
+import org.kie.api.runtime.manager.RuntimeEngine;
+import org.kie.api.runtime.manager.RuntimeManager;
 import org.kie.api.runtime.process.EventListener;
+import org.kie.internal.runtime.manager.context.ProcessInstanceIdContext;
 
 public abstract class ProcessCompletionListener implements EventListener {
 
@@ -39,13 +43,28 @@ public abstract class ProcessCompletionListener implements EventListener {
 		return eventTypes;
 	}
 
-	public void listenTo(RuleFlowProcessInstance processInstance) {
-		this.eventType = "processInstanceCompleted:" + processInstance.getId();
-		this.eventTypes = new String[] { eventType };
+	public void listenTo(RuleFlowProcessInstance processInstance, RuntimeManager runtimeManager) {
+		eventType = "processInstanceCompleted:" + processInstance.getId();
+		eventTypes = new String[] { eventType };
 
 		processInstance.setSignalCompletion(true);
-		processRuntime = (InternalProcessRuntime) processInstance.getKnowledgeRuntime().getProcessRuntime();
-		processRuntime.getSignalManager().addEventListener(eventType, this);
+
+		// The following doesn't work:
+		// experiment
+		RuntimeEngine runtimeEngine = runtimeManager.getRuntimeEngine(ProcessInstanceIdContext.get());
+		RuleFlowProcessInstance parentProcessInstance = (RuleFlowProcessInstance) runtimeEngine.getKieSession()
+				.getProcessInstance(processInstance.getParentProcessInstanceId());
+
+		parentProcessInstance.addEventListener(eventType, this, true);
+		runtimeManager.disposeRuntimeEngine(runtimeEngine);
+
+// The following doesn't work:
+		
+//		processInstance.addEventListener(eventType, this, true);
+
+// The following works just for Singleton Runtime Manager
+//		processRuntime = (InternalProcessRuntime) processInstance.getKnowledgeRuntime().getProcessRuntime();
+//		processRuntime.getSignalManager().addEventListener(eventType, this);
 	}
 
 	private void stopListening() {
