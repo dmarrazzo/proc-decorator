@@ -46,6 +46,9 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 	@Override
 	public void handleExecuteException(Throwable cause, WorkItem workItem, WorkItemManager manager) {
 		log.trace("Begin");
+		RuntimeEngine runtimeEngine = null;
+		KieSession kieSession = null;
+
 		try {
 			if (processId == null)
 				processId = (String) workItem.getParameter("processId");
@@ -55,8 +58,8 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 					workItem.getProcessInstanceId(), cause, processId);
 
 			// Create the kiesession
-			RuntimeEngine runtimeEngine = runtimeManager.getRuntimeEngine(ProcessInstanceIdContext.get());
-			KieSession kieSession = runtimeEngine.getKieSession();
+			runtimeEngine = runtimeManager.getRuntimeEngine(ProcessInstanceIdContext.get());
+			kieSession = runtimeEngine.getKieSession();
 
 			// Create the subprocess
 			RuleFlowProcessInstance processInstance = (RuleFlowProcessInstance) kieSession
@@ -84,8 +87,15 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 			log.error("Error caused by {}, handling exception: {}, in process instance id: {}", t, cause,
 					workItem.getProcessInstanceId());
 			throw t;
+		} finally {
+			if (kieSession != null)
+				kieSession.dispose();
+
+			if (runtimeEngine != null)
+				runtimeManager.disposeRuntimeEngine(runtimeEngine);
+
+			log.trace("End");
 		}
-		log.trace("End");
 	}
 
 	@Override
@@ -95,25 +105,33 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 	}
 
 	public void rethrowException(WorkItem workItem, Throwable cause) throws Exception {
-		// retrieve the process instance of the parent process containing the failing
-		// service
-		RuntimeEngine runtimeEngine = runtimeManager.getRuntimeEngine(ProcessInstanceIdContext.get());
-		RuleFlowProcessInstance parentProcessInstance = (RuleFlowProcessInstance) runtimeEngine.getKieSession()
-				.getProcessInstance(workItem.getProcessInstanceId());
+		RuntimeEngine runtimeEngine = null;
 
-		// retrieve the node instance of the failing servise
-		long nodeInstanceId = ((WorkItemImpl) workItem).getNodeInstanceId();
-		NodeInstance nodeInstance = parentProcessInstance.getNodeInstance(nodeInstanceId, true);
+		try {
+			// retrieve the process instance of the parent process containing the failing
+			// service
+			runtimeEngine = runtimeManager.getRuntimeEngine(ProcessInstanceIdContext.get());
+			RuleFlowProcessInstance parentProcessInstance = (RuleFlowProcessInstance) runtimeEngine.getKieSession()
+					.getProcessInstance(workItem.getProcessInstanceId());
 
-		// throw the exception in the context of the failing services
-		String faultName = cause.getClass().getName();
-		ExceptionScopeInstance exceptionScopeInstance = (ExceptionScopeInstance) nodeInstance
-				.resolveContextInstance(ExceptionScope.EXCEPTION_SCOPE, faultName);
+			// retrieve the node instance of the failing servise
+			long nodeInstanceId = ((WorkItemImpl) workItem).getNodeInstanceId();
+			NodeInstance nodeInstance = parentProcessInstance.getNodeInstance(nodeInstanceId, true);
 
-		if (exceptionScopeInstance == null)
-			throw new Exception("Exception Scope not found in process: " + parentProcessInstance.getProcessId());
+			// throw the exception in the context of the failing services
+			String faultName = cause.getClass().getName();
+			ExceptionScopeInstance exceptionScopeInstance = (ExceptionScopeInstance) nodeInstance
+					.resolveContextInstance(ExceptionScope.EXCEPTION_SCOPE, faultName);
 
-		exceptionScopeInstance.handleException(faultName, cause);
+			if (exceptionScopeInstance == null)
+				throw new Exception("Exception Scope not found in process: " + parentProcessInstance.getProcessId());
+
+			exceptionScopeInstance.handleException(faultName, cause);
+
+		} finally {
+			if (runtimeEngine != null)
+				runtimeManager.disposeRuntimeEngine(runtimeEngine);
+		}
 	}
 
 }
