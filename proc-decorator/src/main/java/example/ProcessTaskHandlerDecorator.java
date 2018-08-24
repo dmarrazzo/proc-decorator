@@ -47,8 +47,6 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 	public void handleExecuteException(Throwable cause, WorkItem workItem, WorkItemManager manager) {
 		log.trace("Begin");
 		RuntimeEngine runtimeEngine = null;
-		KieSession kieSession = null;
-
 		try {
 			if (processId == null)
 				processId = (String) workItem.getParameter("processId");
@@ -59,7 +57,7 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 
 			// Create the kiesession
 			runtimeEngine = runtimeManager.getRuntimeEngine(ProcessInstanceIdContext.get());
-			kieSession = runtimeEngine.getKieSession();
+			KieSession kieSession = runtimeEngine.getKieSession();
 
 			// Create the subprocess
 			RuleFlowProcessInstance processInstance = (RuleFlowProcessInstance) kieSession
@@ -88,9 +86,6 @@ public class ProcessTaskHandlerDecorator extends AbstractExceptionHandlingTaskHa
 					workItem.getProcessInstanceId());
 			throw t;
 		} finally {
-			if (kieSession != null)
-				kieSession.dispose();
-
 			if (runtimeEngine != null)
 				runtimeManager.disposeRuntimeEngine(runtimeEngine);
 
