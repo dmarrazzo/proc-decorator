@@ -1,55 +1,47 @@
 package example;
 
-import org.jbpm.process.instance.InternalProcessRuntime;
 import org.jbpm.process.instance.ProcessInstance;
 import org.jbpm.ruleflow.instance.RuleFlowProcessInstance;
-import org.kie.api.runtime.process.EventListener;
+import org.kie.api.event.process.DefaultProcessEventListener;
+import org.kie.api.event.process.ProcessCompletedEvent;
 
-public abstract class ProcessCompletionListener implements EventListener {
+public abstract class ProcessCompletionListener extends DefaultProcessEventListener {
 
-	private String[] eventTypes;
-	private InternalProcessRuntime processRuntime;
-	private String eventType;
+	private long listeningId;
 
 	public ProcessCompletionListener() {
 	}
 
+	public void listenTo(RuleFlowProcessInstance processInstance) {
+		listeningId = processInstance.getId();
+		processInstance.getKnowledgeRuntime().addEventListener(this);
+	}
+
+	private void stopListening(RuleFlowProcessInstance processInstance) {
+		processInstance.getKnowledgeRuntime().removeEventListener(this);
+	}
+	
 	@Override
-	public void signalEvent(String type, Object event) {
-		if (event instanceof RuleFlowProcessInstance) {
-			RuleFlowProcessInstance processInstance = (RuleFlowProcessInstance) event;
+	public void afterProcessCompleted(ProcessCompletedEvent event) {
+		if (event.getProcessInstance().getId() != listeningId)
+			return;
+			
+		if (event.getProcessInstance() instanceof RuleFlowProcessInstance) {
+			RuleFlowProcessInstance processInstance = (RuleFlowProcessInstance) event.getProcessInstance();
 
 			if (processInstance.getState() == ProcessInstance.STATE_COMPLETED) {
 				processCompleted(processInstance);
 			} else {
 				processAborted(processInstance);
 			}
-			stopListening();
+			stopListening(processInstance);
 		} else {
-			System.err.format("event: %s with wrong payload: %s\n", type, event);
+			System.err.format("event: %s with wrong process instance", event);
 		}
 	}
 
 	public abstract void processCompleted(RuleFlowProcessInstance processInstance);
 
 	public abstract void processAborted(RuleFlowProcessInstance processInstance);
-
-	@Override
-	public String[] getEventTypes() {
-		return eventTypes;
-	}
-
-	public void listenTo(RuleFlowProcessInstance processInstance) {
-		this.eventType = "processInstanceCompleted:" + processInstance.getId();
-		this.eventTypes = new String[] { eventType };
-
-		processInstance.setSignalCompletion(true);
-		processRuntime = (InternalProcessRuntime) processInstance.getKnowledgeRuntime().getProcessRuntime();
-		processRuntime.getSignalManager().addEventListener(eventType, this);
-	}
-
-	private void stopListening() {
-		processRuntime.getSignalManager().removeEventListener(eventType, this);
-	}
 
 }
